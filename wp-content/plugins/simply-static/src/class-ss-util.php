@@ -97,8 +97,8 @@ class Util {
 	public static function clear_debug_log() {
 		$debug_file = self::get_debug_log_filename();
 		if ( file_exists( $debug_file ) ) {
-            // Clear file
-            file_put_contents( $debug_file, '' );
+			// Clear file
+			file_put_contents( $debug_file, '' );
 		}
 	}
 
@@ -145,8 +145,28 @@ class Util {
 	 * @return string Filename for the debug log
 	 */
 	public static function get_debug_log_filename() {
-        $uploadsDir = wp_upload_dir();
-        return $uploadsDir['basedir'] . '/simply-static/debug.txt';
+		// Get directories.
+		$uploads_dir       = wp_upload_dir();
+		$simply_static_dir = $uploads_dir['basedir'] . DIRECTORY_SEPARATOR . 'simply-static' . DIRECTORY_SEPARATOR;
+
+		// Set name for debug file.
+		$options = get_option( 'simply-static' );
+
+		if ( isset( $options['encryption_key'] ) ) {
+			$htaccess_file = get_home_path() . '.htaccess';
+
+			if ( file_exists( $htaccess_file ) && ! is_multisite() ) {
+				// Write to .htaccess file.
+				$htaccess_inner_content = "\nrequire all denied\nrequire host localhost\n";
+				$htaccess_file_content  = '<Files "' . $simply_static_dir . DIRECTORY_SEPARATOR . $options['encryption_key'] . '-debug.txt">' . $htaccess_inner_content . '</Files>';
+
+				insert_with_markers( $htaccess_file, 'Simply Static', $htaccess_file_content );
+			}
+
+			return $simply_static_dir . $options['encryption_key'] . '-debug.txt';
+		} else {
+			return $simply_static_dir . 'debug.txt';
+		}
 	}
 
 	/**
@@ -169,14 +189,14 @@ class Util {
 		return $contents;
 	}
 
-    public static function is_valid_scheme( $scheme ) {
-        $valid_schemes = apply_filters( 'simply_static_valid_schemes', [
-           'http',
-           'https',
-        ]);
+	public static function is_valid_scheme( $scheme ) {
+		$valid_schemes = apply_filters( 'simply_static_valid_schemes', [
+			'http',
+			'https',
+		] );
 
-        return in_array( $scheme, $valid_schemes );
-    }
+		return in_array( $scheme, $valid_schemes );
+	}
 
 	/**
 	 * Given a URL extracted from a page, return an absolute URL
@@ -231,9 +251,9 @@ class Util {
 
 		// if no path, check for an ending slash; if there isn't one, add one
 		if ( ! isset( $parsed_extracted_url['path'] ) ) {
-            if ( isset( $parsed_extracted_url['scheme'] ) && ! self::is_valid_scheme( $parsed_extracted_url['scheme'] ) ) {
-                return $extracted_url;
-            }
+			if ( isset( $parsed_extracted_url['scheme'] ) && ! self::is_valid_scheme( $parsed_extracted_url['scheme'] ) ) {
+				return $extracted_url;
+			}
 			$clean_url     = self::remove_params_and_fragment( $extracted_url );
 			$fragment      = substr( $extracted_url, strlen( $clean_url ) );
 			$extracted_url = trailingslashit( $clean_url ) . $fragment;
@@ -311,7 +331,7 @@ class Util {
 	 * @return boolean      true if URL is local, false otherwise
 	 */
 	public static function is_local_url( $url ) {
-		return ( stripos( self::strip_protocol_from_url( $url ), self::origin_host() ) === 0 );
+		return apply_filters( 'ss_is_local_url', ( stripos( self::strip_protocol_from_url( $url ), self::origin_host() ) === 0 ) );
 	}
 
 	/**
@@ -471,7 +491,7 @@ class Util {
 			'js',
 			'css',
 			'xml',
-		]);
+		] );
 
 		$path_info = self::url_path_info( $url );
 
